@@ -98,9 +98,11 @@ iteration_limit = 20
 
 precision_level = 0.0001
 
+filename = "#{Time.now.to_i}_BFTPoutput.txt"
+
 # Number of nodes will increment ad infinitum.
 # TODO: Create looping logic here that iterates upward by 1 forever.
-number_of_nodes = 1
+number_of_nodes = 3
 
 continue = true
 
@@ -149,10 +151,20 @@ while continue
 	#15. check if answer set contains first ten primes (2, 3, 5, 7, 11, 13, 17, 19, 23, 29)
 	#16. if primes are in answer set, save eval(string) and answer_set to DB.
 
+	evaluated_statements = 0
+	number_of_statements = (
+		operators_combos.to_a.length
+		) * (
+		numbers_combos.to_a.select { |combo| combo.include?('n') }.length
+		) * (
+		groupings_combos.to_a.length
+		) * (
+		multiple_paren_pair_positions_configurations.to_a.length
+		)
+
 	operators_combos.each do |operators_combo|
-		evaluated_statements = 0
 		numbers_combos.each do |numbers_combo|
-			next if !numbers_combo.include?('n') # Important to increment each time.
+			next if !numbers_combo.include?('n') # Important to have an incremental value in the statements.
 			groupings_combos.each do |groupings_combo|
 				multiple_paren_pair_positions_configurations.each do |positions_combo|
 					nodes_array = []
@@ -197,20 +209,26 @@ while continue
 						rescue
 							result = nil
 						else
-							# Round number to closest integer if it's close enough.
-							result = result.round if result.modulo(1) <= precision_level
+							# If it's even legal to do this,
+							if result.is_a?(Fixnum)
+								# Round result to closest integer if it's close enough for jazz.
+								result = result.round.to_f if result.modulo(1) <= precision_level	
+							end
 						ensure
 							answer_set << result
 							n += 1
 						end
 					end
-					if PRIMES_TO_CHECK.proper_subset?(answer_set)
-						# TODO: store statement_string, answer_set in DB
-						# Or... write to file.
+
+					if PRIMES_TO_CHECK.proper_subset?(answer_set)						
+						content = "#{statement_string}\n#{[*set]}\n\n"
+						File.write(filename, content)
 						puts "Found a statement that outputs prime numbers! Writing to file."
 					end
+
 					evaluated_statements += 1
-					puts "#{evaluated_statements} #{number_of_nodes}-node statements evaluated." + "\r"
+					percent_completed = ((evaluated_statements / number_of_statements.to_f) * 100).round(5)
+					print "#{percent_completed}% of #{number_of_statements} #{number_of_nodes}-node statements evaluated." + "\r"
 					$stdout.flush
 				end
 			end  
@@ -232,4 +250,3 @@ while continue
 		end
 	end
 end
-
